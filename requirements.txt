@@ -1,9 +1,4 @@
 # requirements.txt
-fastapi==0.68.1
-uvicorn==0.15.0
-pandas==1.3.3
-python-multipart==0.0.5
-gunicorn==20.1.0
-
-# runtime.txt
-python-3.9.16
+fastapi==0.104.1
+uvicorn==0.24.0
+gunicorn==21.2.0
