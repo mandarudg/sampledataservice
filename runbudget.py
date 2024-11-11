@@ -1,68 +1,62 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, HTMLResponse
-from fastapi.templating import Jinja2Templates
+# app.py
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
-import json
+import os
 
 app = FastAPI()
 
-def load_csv():
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize empty data
+data = []
+
+# Safe data loading function
+def load_data():
+    global data
     try:
-        df = pd.read_csv('data.csv')
-        return df.to_dict('records')
+        # Print current directory and files for debugging
+        print("Current directory:", os.getcwd())
+        print("Files in directory:", os.listdir())
+        
+        # Load CSV with explicit encoding
+        df = pd.read_csv('data.csv', encoding='utf-8')
+        data = df.to_dict('records')
+        print("Data loaded successfully")
+        return True
     except Exception as e:
         print(f"Error loading CSV: {e}")
-        return []
+        return False
 
-data = load_csv()
+@app.on_event("startup")
+async def startup_event():
+    load_data()
 
-@app.get("/", response_class=JSONResponse)
-async def get_json():
-    """
-    Returns raw JSON data
-    """
-    return data
+@app.get("/")
+async def read_root():
+    return {"status": "API is running"}
 
-@app.get("/view", response_class=HTMLResponse)
-async def view_json():
-    """
-    Returns HTML page with formatted JSON
-    """
-    html_content = f"""
-    <html>
-        <head>
-            <title>CSV Data as JSON</title>
-            <style>
-                body {{ 
-                    font-family: Arial, sans-serif;
-                    margin: 20px;
-                    background-color: #f0f0f0;
-                }}
-                pre {{
-                    background-color: white;
-                    padding: 20px;
-                    border-radius: 5px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    overflow-x: auto;
-                }}
-            </style>
-        </head>
-        <body>
-            <h1>CSV Data as JSON</h1>
-            <pre>{json.dumps(data, indent=2)}</pre>
-        </body>
-    </html>
-    """
-    return html_content
+@app.get("/data")
+async def get_data():
+    if not data:
+        return JSONResponse(
+            content={"error": "No data available"},
+            status_code=404
+        )
+    return JSONResponse(content=data)
 
 @app.get("/status")
-async def status():
+async def get_status():
     return {
         "status": "online",
-        "records_loaded": len(data),
-        "endpoints": {
-            "/": "Get raw JSON data",
-            "/view": "View formatted JSON in browser",
-            "/status": "API status"
-        }
+        "data_loaded": bool(data),
+        "record_count": len(data)
     }
